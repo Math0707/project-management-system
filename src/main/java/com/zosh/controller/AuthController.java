@@ -1,12 +1,21 @@
 package com.zosh.controller;
 
+import com.zosh.config.JwtProvider;
 import com.zosh.modal.User;
 import com.zosh.repository.UserRepository;
+import com.zosh.request.LoginRequest;
+import com.zosh.response.AuthResponse;
 import com.zosh.service.CustomeUserDetailsImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.webauthn.api.AuthenticatorResponse;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,7 +34,7 @@ public class AuthController {
     private CustomeUserDetailsImpl customeUserDetails;
 
     @PostMapping("/signup")
-    public ResponseEntity<User>createUserHandler(@RequestBody User user) throws Exception {
+    public ResponseEntity<AuthResponse>createUserHandler(@RequestBody User user) throws Exception {
 
         User isUserExist=userRepository.findByEmail(user.getEmail());
 
@@ -41,7 +50,49 @@ public class AuthController {
 
         User saveUser=userRepository.save(createdUser);
 
-        return new ResponseEntity<>(saveUser, HttpStatus.CREATED);
+        Authentication authentication=new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        String jwt= JwtProvider.generateToken(authentication);
+
+        AuthResponse res=new AuthResponse();
+        res.setMessage("signup success");
+        res.setJwt(jwt);
+
+        return new ResponseEntity<>(res, HttpStatus.CREATED);
     }
+
+    @PostMapping("/signing")
+    public ResponseEntity<AuthResponse> signing(@RequestBody LoginRequest loginRequest){
+
+        String username=loginRequest.getEmail();
+        String password= loginRequest.getPassword();
+
+        Authentication authentication=authenticate(username,password);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        String jwt= JwtProvider.generateToken(authentication);
+
+        AuthResponse res=new AuthResponse();
+        res.setMessage("signing success");
+        res.setJwt(jwt);
+
+        return new ResponseEntity<>(res, HttpStatus.CREATED);
+    }
+
+    private Authentication authenticate(String username, String password) {
+        UserDetails userDetails=customeUserDetails.loadUserByUsername(username);
+        if(userDetails == null){
+            throw new BadCredentialsException("invalid username");
+        }
+
+        if(!passwordEncoder.matches(password,userDetails.getPassword())){
+            throw new BadCredentialsException("invalid password");
+        }
+
+        return new UsernamePasswordAuthenticationToken(userDetails, null ,userDetails.getAuthorities());
+
+    }
+
 
 }
