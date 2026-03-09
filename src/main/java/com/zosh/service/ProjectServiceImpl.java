@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ProjectServiceImpl implements ProjectService  {
@@ -17,6 +18,9 @@ public class ProjectServiceImpl implements ProjectService  {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private ChatService chatService;
 
 
     @Override
@@ -35,9 +39,10 @@ public class ProjectServiceImpl implements ProjectService  {
         Chat chat=new Chat();
         chat.setProject(savedProject);
 
-        //Chat projectChat=chatService
+        Chat projectChat=chatService.createChat(chat);
+        savedProject.setChat(projectChat);
 
-        return null;
+        return savedProject;
     }
 
     @Override
@@ -47,6 +52,11 @@ public class ProjectServiceImpl implements ProjectService  {
 
     @Override
     public List<Project> getProjectByTeam(User user, String category, String tag) throws Exception {
+        List<Project> projects=projectRepository.findByTeamContainingOrOwner(user, user);
+
+        if(category!=null){
+            projects=projects.stream().filter(project -> project.getCategory().equals(category)).collect(Collectors.toList());
+        }
         return List.of();
     }
 
