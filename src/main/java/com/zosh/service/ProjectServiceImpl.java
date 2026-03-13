@@ -128,4 +128,10 @@ public class ProjectServiceImpl implements ProjectService  {
 
         return project.getChat();
     }
+
+    @Override
+    public List<Project> searchProjects(String keyword, User user) throws Exception {
+
+        return projectRepository.findByNameContainingAndTeamContains(keyword,user);
+    }
 }
